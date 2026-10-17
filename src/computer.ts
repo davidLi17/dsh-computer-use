@@ -33,6 +33,8 @@ export interface Settings {
   typingMode: TypingMode
   /** Run the model at its lowest reasoning effort for the requests in the middle of operating the computer. */
   quickSteps: boolean
+  /** Run screenshots, display / window queries and idle input in-process through DSH's koffi instead of the C# helper. */
+  nativeHelper: boolean
 }
 
 export type TypingMode = 'stream' | 'type' | 'paste'

@@ -3,11 +3,13 @@
  * ships (see worker.ts) and hands everything else to the C# helper.
  *
  * What may go native depends on what the C# helper has on screen:
- * - displays / cursor: always.
+ * - displays / cursor / foreground: always.
  * - screenshot: unless a window card is up (the C# side captures under it).
- * - move / click / keys: only while no overlay is shown, since the C# side
- *   dodges the pill, lets input through its cards and waits for the
- *   instruction box around every pointer or key action.
+ * - move / click / keys / drag / scroll / type: only while no overlay is
+ *   shown, since the C# side dodges the pill, lets input through its cards
+ *   and waits for the instruction box around every pointer or key action.
+ * - windows / window_at: likewise, since the C# side leaves its own overlay
+ *   windows and the DSH card out of them.
  * If the worker fails to start, every command goes to the C# helper.
  */
 import { existsSync } from 'node:fs'
@@ -16,9 +18,10 @@ import { Worker } from 'node:worker_threads'
 import type { HelperEvent, HelperLike } from '../helper-client.js'
 import { findKoffi } from './koffi-path.js'
 
-const ALWAYS = new Set(['displays', 'cursor'])
+const ALWAYS = new Set(['displays', 'cursor', 'foreground'])
 const NO_CARD = new Set(['screenshot'])
-const NO_OVERLAY = new Set(['move', 'click', 'keys'])
+// windows / window_at: the C# side leaves its own overlay windows and the DSH card out of them.
+const NO_OVERLAY = new Set(['move', 'click', 'keys', 'drag', 'scroll', 'type', 'windows', 'window_at'])
 
 interface Pending { resolve(value: unknown): void; reject(error: Error): void; timer: NodeJS.Timeout }
 
@@ -40,11 +43,13 @@ export class NativeHelper implements HelperLike {
   constructor(
     private readonly fallback: HelperLike,
     private readonly log: (message: string) => void = () => {},
+    /** The nativeHelper setting, read on every call. */
+    private readonly enabled: () => boolean = () => true,
     /** null: no koffi.node, every command goes to the C# helper. */
     private readonly koffiPath: string | null = findKoffi() ?? null,
   ) {}
 
-  get available(): boolean { return this.koffiPath !== null && !this.broken }
+  get available(): boolean { return this.koffiPath !== null && !this.broken && this.enabled() }
 
   /** Whether a command would run through koffi right now. */
   routesNative(cmd: string): boolean {

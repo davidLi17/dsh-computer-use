@@ -69,3 +69,11 @@ worker 截图期间，事件循环的 5 ms 定时器仍在跳动，宿主没有�
 1. ~~先把已有的命令接进插件~~（已完成，见上）。要让输入在浮层显示时也走 koffi，需要先把 Dodge / PassThrough / 输入框等待搬到 koffi 这边，也就是先迁移浮层。
 2. 按上表从低到高逐步迁移；浮层和 UIA 最后做，或者一直留在 C# 里（powershell 宿主可以兜底）。
 3. 一直保留 C# 路径，给没有 koffi.node 的宿主用。
+
+## 0.8.0 合入的范围
+
+- 走 koffi 的命令：`displays` / `cursor` / `foreground`（一律），`screenshot`（没有窗口卡片时），`move` / `click` / `keys` / `drag` / `scroll` / `type` / `windows` / `window_at`（浮层没显示时）。`windows` 和 `window_at` 也归入“浮层没显示时”，因为 C# 版会把自己的浮层窗口和 DSH 卡片排除在外。
+- 新设置 `nativeHelper`（“进程内截图与输入”，默认开，改了立即生效）：关掉后全部交给 C# helper。
+- `native-smoke.mjs --notepad` 在 DSH 运行时下：`windows`（3 个窗口）、`foreground`、`window_at` 和 C# 的输出逐字段一致；`type`（中文、emoji 代理对、Tab、换行）、`scroll`、`drag` 都 PASS。
+- 截图速度这次两边基本持平（koffi 中位数 148 ms，C# 143 ms，前一次是 koffi 更快），屏幕内容不同，数字会有波动。主要收益是启动快、少一次进程间往返。
+- 浮层、窗口卡片、UI Automation、剪贴板、应用搜索和启动、托盘仍由 C# 负责。

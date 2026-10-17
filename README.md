@@ -36,7 +36,7 @@
 | 应用技能 | AI 对各个应用的操作笔记，每个应用一份 Markdown（`~/.dsh/computer-use-skills/`）。AI 摸索清楚一个不熟悉的应用后用 `app_skill` 自己记下来（只记操作规律，不记任务内容），以后 `open_application` 打开该应用时自动附带，不占系统提示。自带 Word、PowerPoint、Excel、Chrome、文件资源管理器、Obsidian、Typora、微信、QQ、记事本十份内置技能（含各应用的快捷键清单，PowerPoint 含原生公式和动画的做法）；AI 在内置技能上追加的笔记单独保存，内置部分随插件更新；设置页“应用技能”里可以查看、修改、删除、新建，内置技能可覆盖和恢复 |
 | 打开应用 | `open_application` 同时搜索开始菜单和桌面快捷方式（含公共桌面），便携软件也能按名字打开。已经关到系统托盘的应用（QQ、微信等）会像人一样点托盘图标把窗口叫回来（必要时先展开“显示隐藏的图标”），不会再启动第二个实例、也不会重复登录；你明确要多开时（如微信双开）AI 会用 `new_instance` 另开一个。任务结束时 AI 会收拾现场：关掉自己打开、你不再需要的窗口，`windows tidy` 把原本最小化或在托盘里的应用重新最小化 |
 | 看不见图的模型 | `ui_elements` 用 Windows UI Automation 列出可点击元素和坐标，纯文本模型也能用 |
-| 零原生依赖 | 首次使用时用 Windows 自带的 .NET Framework `csc.exe` 编译一个小 helper（约 1 秒，之后缓存），不需要 node-gyp、不受 Electron ABI 影响 |
+| 零原生依赖 | 截图、窗口查询和输入直接调用 DeepSeek Harness 自带的 koffi，不需要额外安装；浮层、UI Automation、剪贴板等由一个小 helper 负责，首次使用时用 Windows 自带的 .NET Framework `csc.exe` 编译（约 1 秒，之后缓存）。不需要 node-gyp，也不受 Electron ABI 影响。开启了智能应用控制（Smart App Control）时，helper 改为在系统自带的 PowerShell 里运行 |
 
 ## 安装
 
@@ -97,13 +97,14 @@ dsh plugin --profile web add @copylee/dsh-computer-use@latest
 | 文字输入方式 | 流式 | 流式（长文本逐段出现）/ 逐字输入（最像打字，最慢）/ 一次粘贴（最快） |
 | 键盘静止多久后恢复 | 1500 ms | |
 | 禁止操控的应用 | 空 | 名称或 exe，如 `alipay` |
+| 进程内截图与输入 | 开 | 截图、显示器和窗口查询，以及浮层未显示时的输入，改由 DSH 自带的 koffi 在进程内完成，启动更快，也少一次进程间往返。出问题时可以关掉，全部交给 helper |
 | 强调色 | 陶土橙 | 陶土橙 / 蓝色 / 黑色，决定设置页主按钮和开关的颜色，与 copylee 的其他插件共用同一个选择。操控时的橙色光晕不随它变化 |
 
 ## 数据与隐私
 
 - 截图只作为当前会话的图片附件发给你选择的模型，插件不上传、不保存到别处。
 - 截图附件存放在 `~/.dsh/attachments`，随会话历史保留（DSH 会校验附件，删掉仍被会话引用的截图会让该会话无法继续，所以插件不会动它们）。会话删除后留下的“孤儿”截图会在 DSH 启动几分钟后及之后每 12 小时自动清理；设置页“截图缓存”可查看占用并立即清理。
-- helper 源码 `helper/CuHelper.cs` 随包发布，可自行审阅；编译产物缓存在 `%LOCALAPPDATA%\dsh-computer-use\`。
+- helper 源码 `helper/CuHelper.cs` 随包发布，可自行审阅；编译产物缓存在 `%LOCALAPPDATA%\dsh-computer-use\`。进程内的部分（`src/native/`）只加载 DSH 自带的 koffi.node 和 Windows 系统 DLL。
 - 以管理员身份运行的窗口、UAC 弹窗、锁屏无法被控制（Windows UIPI 限制），遇到时模型会请你手动处理。
 - 插件注入的系统提示要求模型不代填密码、支付信息、不处理验证码，遇到时交还给你。
 
@@ -112,7 +113,9 @@ dsh plugin --profile web add @copylee/dsh-computer-use@latest
 ```
 DSH Host (Electron, Node 模式)
  └─ lib/index.js  工具 / 审批 / 系统提示 / overlay 生命周期
-     └─ cu-helper.exe（常驻，stdin/stdout 每行一个 JSON）
+     ├─ lib/native-worker.js（worker 线程，DSH 自带的 koffi）
+     │    截图 · 显示器 / 窗口查询 · 浮层未显示时的鼠标键盘
+     └─ cu-helper.exe（常驻，stdin/stdout 每行一个 JSON；SAC 下在 powershell.exe 里加载）
           Per-Monitor-V2 DPI 感知 · GDI 截图 + 缩放 + JPEG · SendInput 鼠标键盘
           窗口枚举与前置 · shell:AppsFolder 启动应用 · 剪贴板 · UI Automation
           分层窗口 overlay（WDA_EXCLUDEFROMCAPTURE）· 低级键盘钩子（只认物理 Esc）
@@ -127,6 +130,7 @@ pnpm test                               # vitest（mock helper，跨平台）
 pnpm build                              # tsc → lib/types，tsdown → lib/index.js
 node scripts/helper-smoke.mjs           # 本机实测：编译 helper、截图、overlay
 node scripts/helper-smoke.mjs --notepad # 另外用临时文件测试中文输入
+node scripts/native-smoke.mjs --notepad # koffi 路径与 helper 对比；需在 DSH 运行时下跑或设 DSH_KOFFI_PATH
 pnpm pack:check
 ```
 

@@ -4,6 +4,7 @@
  * event loop. Replies use the same shapes as helper/CuHelper.cs.
  */
 import { createRequire } from 'node:module'
+import { win32 } from 'node:path'
 import { parentPort, workerData } from 'node:worker_threads'
 import type * as KoffiModule from 'koffi'
 
@@ -18,6 +19,7 @@ const shcore = koffi.load('shcore.dll')
 const gdiplus = koffi.load('gdiplus.dll')
 const ole32 = koffi.load('ole32.dll')
 const kernel32 = koffi.load('kernel32.dll')
+const dwmapi = koffi.load('dwmapi.dll')
 
 const RECT = koffi.struct('RECT', { left: 'int32_t', top: 'int32_t', right: 'int32_t', bottom: 'int32_t' })
 const POINT = koffi.struct('POINT', { x: 'int32_t', y: 'int32_t' })
@@ -37,6 +39,7 @@ const GdiplusStartupInput = koffi.struct('GdiplusStartupInput', {
 })
 const MonitorEnumProc = koffi.proto('int __stdcall MonitorEnumProc(void *monitor, void *hdc, RECT *rect, intptr_t data)')
 const ReleaseProc = koffi.proto('uint32_t __stdcall ReleaseProc(void *self)')
+const EnumWindowsProc = koffi.proto('int __stdcall EnumWindowsProc(void *hwnd, intptr_t data)')
 
 const SetThreadDpiAwarenessContext = user32.func('intptr_t __stdcall SetThreadDpiAwarenessContext(intptr_t context)')
 const EnumDisplayMonitors = user32.func('int __stdcall EnumDisplayMonitors(void *hdc, RECT *clip, MonitorEnumProc *proc, intptr_t data)')
@@ -48,6 +51,25 @@ const MapVirtualKeyW = user32.func('uint32_t __stdcall MapVirtualKeyW(uint32_t c
 const GetDC = user32.func('void * __stdcall GetDC(void *hwnd)')
 const ReleaseDC = user32.func('int __stdcall ReleaseDC(void *hwnd, void *hdc)')
 const GetLastError = kernel32.func('uint32_t __stdcall GetLastError()')
+const GetForegroundWindow = user32.func('void * __stdcall GetForegroundWindow()')
+const IsWindow = user32.func('int __stdcall IsWindow(void *hwnd)')
+const IsWindowVisible = user32.func('int __stdcall IsWindowVisible(void *hwnd)')
+const IsIconic = user32.func('int __stdcall IsIconic(void *hwnd)')
+const IsZoomed = user32.func('int __stdcall IsZoomed(void *hwnd)')
+const GetWindow = user32.func('void * __stdcall GetWindow(void *hwnd, uint32_t cmd)')
+const GetAncestor = user32.func('void * __stdcall GetAncestor(void *hwnd, uint32_t flags)')
+const WindowFromPoint = user32.func('void * __stdcall WindowFromPoint(POINT point)')
+const GetWindowLongW = user32.func('int32_t __stdcall GetWindowLongW(void *hwnd, int index)')
+const GetWindowTextLengthW = user32.func('int __stdcall GetWindowTextLengthW(void *hwnd)')
+const GetWindowTextW = user32.func('int __stdcall GetWindowTextW(void *hwnd, void *text, int max)')
+const GetClassNameW = user32.func('int __stdcall GetClassNameW(void *hwnd, void *name, int max)')
+const GetWindowRect = user32.func('int __stdcall GetWindowRect(void *hwnd, _Out_ RECT *rect)')
+const GetWindowThreadProcessId = user32.func('uint32_t __stdcall GetWindowThreadProcessId(void *hwnd, _Out_ uint32_t *pid)')
+const EnumWindows = user32.func('int __stdcall EnumWindows(EnumWindowsProc *proc, intptr_t data)')
+const DwmGetWindowAttribute = dwmapi.func('int32_t __stdcall DwmGetWindowAttribute(void *hwnd, uint32_t attribute, void *value, uint32_t size)')
+const OpenProcess = kernel32.func('void * __stdcall OpenProcess(uint32_t access, int inherit, uint32_t pid)')
+const QueryFullProcessImageNameW = kernel32.func('int __stdcall QueryFullProcessImageNameW(void *process, uint32_t flags, void *name, _Inout_ uint32_t *size)')
+const CloseHandle = kernel32.func('int __stdcall CloseHandle(void *handle)')
 const GetDpiForMonitor = shcore.func('int32_t __stdcall GetDpiForMonitor(void *monitor, int type, _Out_ uint32_t *x, _Out_ uint32_t *y)')
 const CreateCompatibleDC = gdi32.func('void * __stdcall CreateCompatibleDC(void *hdc)')
 const CreateDIBSection = gdi32.func('void * __stdcall CreateDIBSection(void *hdc, BITMAPINFOHEADER *info, uint32_t usage, _Out_ void **bits, void *section, uint32_t offset)')
@@ -191,6 +213,188 @@ function keys(args: Args): null {
   return null
 }
 
+function drag(args: Args): null {
+  const x1 = int(args, 'x1', 0), y1 = int(args, 'y1', 0), x2 = int(args, 'x2', 0), y2 = int(args, 'y2', 0)
+  const [down, up] = buttonFlags(args.button)
+  move(x1, y1); sleep(40)
+  send([mouse(down)])
+  try {
+    sleep(60)
+    const steps = Math.max(8, Math.min(40, Math.trunc(Math.hypot(x2 - x1, y2 - y1) / 20)))
+    for (let i = 1; i <= steps; i++) {
+      move(x1 + Math.trunc((x2 - x1) * i / steps), y1 + Math.trunc((y2 - y1) * i / steps))
+      sleep(12)
+    }
+    sleep(60)
+  } finally {
+    send([mouse(up)])
+  }
+  return null
+}
+
+function scroll(args: Args): null {
+  if (typeof args.x === 'number') { move(int(args, 'x', 0), int(args, 'y', 0)); sleep(30) }
+  const dx = int(args, 'dx', 0), dy = int(args, 'dy', 0)
+  const mods = vkList(args.modifiers)
+  send(mods.map(vk => key(vk, false)))
+  try {
+    // One notch per event, spaced out, so smooth-scrolling apps keep up.
+    for (let i = 0; i < Math.abs(dy); i++) { send([mouse(0x0800, dy > 0 ? -120 : 120)]); sleep(15) }
+    for (let i = 0; i < Math.abs(dx); i++) { send([mouse(0x1000, dx > 0 ? 120 : -120)]); sleep(15) }
+  } finally {
+    send([...mods].reverse().map(vk => key(vk, true)))
+  }
+  return null
+}
+
+function unicode(unit: number, up: boolean): Buffer {
+  const b = Buffer.alloc(INPUT_SIZE)
+  b.writeUInt32LE(1, 0) // INPUT_KEYBOARD
+  b.writeUInt16LE(unit, 10)
+  b.writeUInt32LE(0x4 | (up ? 0x2 : 0), 12) // KEYEVENTF_UNICODE
+  b.writeBigUInt64LE(MARKER, 24)
+  return b
+}
+
+/** charDelay > 0: one character at a time, like a person typing; otherwise fast batches. */
+function typeText(args: Args): null {
+  const text = typeof args.text === 'string' ? args.text : ''
+  const charDelay = int(args, 'charDelay', 0), pause = charDelay > 0 ? charDelay : int(args, 'chunkDelay', 8)
+  let batch: Buffer[] = []
+  const flush = (): void => { if (batch.length === 0) return; send(batch); batch = []; if (pause > 0) sleep(pause) }
+  for (let i = 0; i < text.length; i++) {
+    let c = text.charCodeAt(i)
+    if (c === 0x0D) { if (text.charCodeAt(i + 1) === 0x0A) continue; c = 0x0A }
+    if (c === 0x0A) { flush(); batch.push(key(0x0D, false), key(0x0D, true)); flush(); continue }
+    if (c === 0x09) { batch.push(key(0x09, false), key(0x09, true)); continue }
+    batch.push(unicode(c, false), unicode(c, true))
+    if (c >= 0xD800 && c <= 0xDBFF) continue // keep a surrogate pair in one batch
+    if (charDelay > 0 || batch.length >= 40) flush()
+  }
+  flush()
+  return null
+}
+
+// ---- windows ----
+
+type Rect = { left: number; top: number; right: number; bottom: number }
+
+function hwndOf(value: unknown): bigint {
+  if (typeof value === 'bigint') return value
+  if (typeof value === 'number') return BigInt(Math.trunc(value))
+  return 0n
+}
+
+function utf16(read: (buffer: Buffer, max: number) => number, max: number): string {
+  const buffer = Buffer.alloc(max * 2)
+  const n = read(buffer, max)
+  return n > 0 ? buffer.toString('utf16le', 0, n * 2) : ''
+}
+
+function exePath(pid: number): string {
+  const handle = OpenProcess(0x1000, 0, pid) as bigint | null
+  if (!handle) return ''
+  try {
+    const size = [1024]
+    const name = Buffer.alloc(2048)
+    return QueryFullProcessImageNameW(handle, 0, name, size) ? name.toString('utf16le', 0, size[0]! * 2) : ''
+  } finally {
+    CloseHandle(handle)
+  }
+}
+
+function processOf(hwnd: bigint): number {
+  const pid = [0]
+  GetWindowThreadProcessId(hwnd, pid)
+  return pid[0]!
+}
+
+function cloaked(hwnd: bigint): boolean {
+  const value = Buffer.alloc(4)
+  return DwmGetWindowAttribute(hwnd, 14, value, 4) === 0 && value.readInt32LE(0) !== 0
+}
+
+function windowRect(hwnd: bigint): Rect {
+  const rect = {} as Rect
+  GetWindowRect(hwnd, rect)
+  return rect
+}
+
+/** The visible frame (without the invisible resize border), else the window rectangle. */
+function bounds(hwnd: bigint): Rect {
+  const frame = Buffer.alloc(16)
+  if (DwmGetWindowAttribute(hwnd, 9, frame, 16) !== 0) return windowRect(hwnd)
+  return { left: frame.readInt32LE(0), top: frame.readInt32LE(4), right: frame.readInt32LE(8), bottom: frame.readInt32LE(12) }
+}
+
+/** Same fields as Windows.Describe in the C# helper; {} for no window. */
+function describe(hwnd: bigint): Record<string, unknown> {
+  if (!hwnd || !IsWindow(hwnd)) return {}
+  const pid = processOf(hwnd)
+  const length = GetWindowTextLengthW(hwnd) as number
+  const title = utf16((b, max) => GetWindowTextW(hwnd, b, max) as number, Math.max(length + 1, 2))
+  const className = utf16((b, max) => GetClassNameW(hwnd, b, max) as number, 256)
+  const rc = bounds(hwnd)
+  const path = exePath(pid)
+  return {
+    hwnd: Number(hwnd), title, className, pid, exe: path ? win32.basename(path) : '', path,
+    x: rc.left, y: rc.top, width: rc.right - rc.left, height: rc.bottom - rc.top,
+    minimized: Boolean(IsIconic(hwnd)), maximized: Boolean(IsZoomed(hwnd)),
+  }
+}
+
+function enumWindows(visit: (hwnd: bigint) => boolean): void {
+  const callback = koffi.register((hwnd: unknown) => (visit(hwndOf(hwnd)) ? 1 : 0), koffi.pointer(EnumWindowsProc))
+  try { EnumWindows(callback, 0) } finally { koffi.unregister(callback) }
+}
+
+function foreground(): Record<string, unknown> {
+  return describe(hwndOf(GetForegroundWindow()))
+}
+
+/** Top-level app windows, as Windows.List in the C# helper. */
+function windows(): unknown[] {
+  const list: unknown[] = []
+  const fg = hwndOf(GetForegroundWindow())
+  enumWindows(h => {
+    if (!IsWindowVisible(h) || GetWindowTextLengthW(h) === 0) return true
+    if (hwndOf(GetWindow(h, 4))) return true // owned popup
+    const ex = GetWindowLongW(h, -20) as number
+    if ((ex & 0x80) !== 0 && (ex & 0x40000) === 0) return true // tool window
+    if (cloaked(h)) return true
+    list.push({ ...describe(h), foreground: h === fg })
+    return true
+  })
+  return list
+}
+
+/** Full-screen overlays that never take input themselves (NVIDIA / Xbox Game Bar...). */
+const SEE_THROUGH = ['nvidia overlay.exe', 'nvsphelper64.exe', 'gamebar.exe', 'gamebarftserver.exe']
+
+function seeThrough(pid: number): boolean {
+  return pid !== 0 && SEE_THROUGH.includes(win32.basename(exePath(pid)).toLowerCase())
+}
+
+/** The top-level window under a point, as Windows.At in the C# helper. */
+function windowAt(args: Args): Record<string, unknown> {
+  const x = int(args, 'x', 0), y = int(args, 'y', 0)
+  let h = hwndOf(WindowFromPoint({ x, y }))
+  if (h) h = hwndOf(GetAncestor(h, 2)) // GA_ROOT
+  if (!h || seeThrough(processOf(h))) {
+    let found = 0n
+    enumWindows(w => {
+      if (!IsWindowVisible(w) || seeThrough(processOf(w))) return true
+      if (((GetWindowLongW(w, -20) as number) & 0x20) !== 0) return true // WS_EX_TRANSPARENT
+      if (IsIconic(w) || cloaked(w)) return true
+      const rc = windowRect(w)
+      if (x >= rc.left && x < rc.right && y >= rc.top && y < rc.bottom) { found = w; return false }
+      return true
+    })
+    h = found
+  }
+  return describe(h)
+}
+
 // ---- screenshot ----
 
 let gdiplusReady = false
@@ -324,6 +528,12 @@ const COMMANDS: Record<string, (args: Args) => unknown> = {
   move: args => { move(int(args, 'x', 0), int(args, 'y', 0)); return null },
   click,
   keys,
+  drag,
+  scroll,
+  type: typeText,
+  foreground,
+  windows,
+  window_at: windowAt,
   screenshot,
 }
 

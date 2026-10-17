@@ -14,14 +14,14 @@ function fake(): HelperLike & { calls: string[] } {
 
 describe('NativeHelper routing', () => {
   it('sends everything to the C# helper when koffi.node is missing', () => {
-    const helper = new NativeHelper(fake(), () => {}, null)
+    const helper = new NativeHelper(fake(), () => {}, () => true, null)
     expect(helper.routesNative('displays')).toBe(false)
     expect(helper.routesNative('screenshot')).toBe(false)
   })
 
   it('keeps pointer and key input on the C# side while the overlay is shown', async () => {
     const csharp = fake()
-    const helper = new NativeHelper(csharp, () => {}, 'koffi.node')
+    const helper = new NativeHelper(csharp, () => {}, () => true, 'koffi.node')
     expect(helper.routesNative('click')).toBe(true)
     await helper.call('overlay_show', {})
     expect(helper.routesNative('click')).toBe(false)
@@ -33,7 +33,7 @@ describe('NativeHelper routing', () => {
   })
 
   it('captures through the C# helper while a window card is up', async () => {
-    const helper = new NativeHelper(fake(), () => {}, 'koffi.node')
+    const helper = new NativeHelper(fake(), () => {}, () => true, 'koffi.node')
     await helper.call('window_card', { hwnd: 42 })
     expect(helper.routesNative('screenshot')).toBe(false)
     expect(helper.routesNative('displays')).toBe(true)
@@ -41,8 +41,17 @@ describe('NativeHelper routing', () => {
     expect(helper.routesNative('screenshot')).toBe(true)
   })
 
+  it('sends everything to the C# helper when the setting is off', () => {
+    let on = true
+    const helper = new NativeHelper(fake(), () => {}, () => on, 'koffi.node')
+    expect(helper.routesNative('screenshot')).toBe(true)
+    on = false
+    expect(helper.routesNative('screenshot')).toBe(false)
+    expect(helper.routesNative('displays')).toBe(false)
+  })
+
   it('never takes overlay, UI Automation or clipboard commands', () => {
-    const helper = new NativeHelper(fake(), () => {}, 'koffi.node')
-    for (const cmd of ['ping', 'overlay_show', 'ui', 'text', 'type', 'paste', 'clipboard_get', 'settle']) expect(helper.routesNative(cmd)).toBe(false)
+    const helper = new NativeHelper(fake(), () => {}, () => true, 'koffi.node')
+    for (const cmd of ['ping', 'overlay_show', 'ui', 'text', 'paste', 'clipboard_get', 'settle', 'launch']) expect(helper.routesNative(cmd)).toBe(false)
   })
 })
