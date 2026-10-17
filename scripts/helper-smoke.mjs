@@ -1,18 +1,20 @@
 // Live smoke test of the Windows helper (real screen, real input).
-//   pnpm run build && node scripts/helper-smoke.mjs [--notepad]
+//   pnpm run build && node scripts/helper-smoke.mjs [--notepad] [--hosted]
 // Compiles the helper, prints displays/windows, saves screenshots to .smoke/,
 // shows the overlay for a few seconds and, with --notepad, opens Notepad,
 // types mixed Chinese/English text and verifies it via UI Automation.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
-import { HelperClient, ensureHelperExe } from '../lib/types/helper-client.js'
+import { HelperClient, ensureHelperExe, useHostedHelper } from '../lib/types/helper-client.js'
 import { matchTarget } from '../lib/types/target.js'
 
 const out = new URL('../.smoke/', import.meta.url)
 mkdirSync(out, { recursive: true })
 const t0 = Date.now()
 console.log('helper exe:', await ensureHelperExe(), `(${Date.now() - t0} ms)`)
+// --hosted runs the helper inside powershell.exe, as on machines with Smart App Control on.
+if (process.argv.includes('--hosted')) useHostedHelper()
 const helper = new HelperClient(console.warn)
 helper.onEvent(event => console.log('event:', event))
 

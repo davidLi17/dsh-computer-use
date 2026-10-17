@@ -87,6 +87,29 @@ export async function ensureHelperExe(source = helperSourcePath()): Promise<stri
   }
 }
 
+/**
+ * Set once the unsigned exe has been refused: Smart App Control blocks it with
+ * ERROR_ACCESS_DISABLED_BY_POLICY, which libuv reports as UNKNOWN. From then on
+ * the same assembly runs inside the signed powershell.exe (helper/host.ps1).
+ */
+let hostedHelper = false
+
+const POLICY_CODES = new Set(['UNKNOWN', 'EACCES', 'EPERM'])
+
+function isPolicyBlock(error: unknown): boolean {
+  return POLICY_CODES.has(String((error as NodeJS.ErrnoException | undefined)?.code)) && (error as NodeJS.ErrnoException).syscall?.startsWith('spawn') === true
+}
+
+function powershellPath(): string {
+  const windir = process.env.SystemRoot ?? process.env.windir ?? 'C:\\Windows'
+  return join(windir, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+}
+
+/** For the smoke script: run the helper inside powershell.exe from the start. */
+export function useHostedHelper(on = true): void {
+  hostedHelper = on
+}
+
 interface Pending { resolve(value: unknown): void; reject(error: Error): void; timer: NodeJS.Timeout }
 
 export class HelperClient implements HelperLike {
@@ -146,7 +169,31 @@ export class HelperClient implements HelperLike {
 
   private async start(): Promise<ChildProcessWithoutNullStreams> {
     const exe = await ensureHelperExe()
-    const child = spawn(exe, [], { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
+    if (!hostedHelper) {
+      try {
+        return await this.launch(exe, [])
+      } catch (error) {
+        if (!isPolicyBlock(error)) throw error
+        this.log(`starting cu-helper.exe was refused (${(error as NodeJS.ErrnoException).code ?? 'unknown'}); running it inside powershell.exe instead`)
+        hostedHelper = true
+      }
+    }
+    try {
+      return await this.launch(powershellPath(), [
+        '-NoProfile', '-NonInteractive', '-STA', '-ExecutionPolicy', 'Bypass', '-File', helperAssetPath('host.ps1'), exe,
+      ])
+    } catch (error) {
+      throw new Error(
+        `The computer-use helper could not be started (${error instanceof Error ? error.message : String(error)}). `
+        + 'Windows refused to run the helper this plugin compiles (cu-helper.exe), and running it inside powershell.exe failed too. '
+        + 'Smart App Control or another application control policy is the usual cause: '
+        + 'see Event Viewer > Applications and Services Logs > Microsoft > Windows > CodeIntegrity > Operational.',
+      )
+    }
+  }
+
+  private async launch(command: string, args: string[]): Promise<ChildProcessWithoutNullStreams> {
+    const child = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
     let buffer = ''
     let ready: (() => void) | undefined
     const readyPromise = new Promise<void>((resolve, reject) => {
