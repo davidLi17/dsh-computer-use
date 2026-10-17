@@ -24,6 +24,7 @@ export const DEFAULTS: Settings = {
   userIdleMs: 1500,
   typingMode: 'stream',
   quickSteps: false,
+  nativeHelper: true,
 }
 
 /** Unwrap `.volatile()` refs (`{ get() }`) and fall back to defaults for bad values. */
@@ -40,7 +41,7 @@ export function resolveConfig(raw: unknown): Settings {
     const value = out[key]
     return typeof value === 'number' && Number.isFinite(value) ? Math.min(max, Math.max(min, Math.round(value))) : DEFAULTS[key]
   }
-  const bool = (key: 'overlay' | 'autoScreenshot' | 'pauseOnUserInput' | 'quickSteps'): boolean => typeof out[key] === 'boolean' ? out[key] : DEFAULTS[key]
+  const bool = (key: 'overlay' | 'autoScreenshot' | 'pauseOnUserInput' | 'quickSteps' | 'nativeHelper'): boolean => typeof out[key] === 'boolean' ? out[key] : DEFAULTS[key]
   return {
     accessMode: out.accessMode === 'allow-all' || out.accessMode === 'per-app' ? out.accessMode : DEFAULTS.accessMode,
     overlay: bool('overlay'),
@@ -57,6 +58,7 @@ export function resolveConfig(raw: unknown): Settings {
     pauseOnUserInput: bool('pauseOnUserInput'),
     userIdleMs: num('userIdleMs', 300, 10_000),
     quickSteps: bool('quickSteps'),
+    nativeHelper: bool('nativeHelper'),
     typingMode: out.typingMode === 'stream' || out.typingMode === 'type' || out.typingMode === 'paste' ? out.typingMode : DEFAULTS.typingMode,
     blockedApps: Array.isArray(out.blockedApps) ? out.blockedApps.filter((item): item is string => typeof item === 'string' && item.trim() !== '') : [],
   }

@@ -15,6 +15,7 @@ import type {} from './system-prompt-service.js'
 import { AccessControl, normalizeApp, type AccessMode } from './access.js'
 import { Computer, type CallContext, type Settings, type TypingMode } from './computer.js'
 import { HelperClient, helperAssetPath } from './helper-client.js'
+import { NativeHelper } from './native/native-helper.js'
 import { OverlayController, type CancellableAgent, type HostWindowMode, type StreamFrame } from './overlay.js'
 import { promptText } from './prompt.js'
 import { SkillStore } from './skills.js'
@@ -47,6 +48,7 @@ export interface Config {
   userIdleMs?: number
   typingMode?: TypingMode
   quickSteps?: boolean
+  nativeHelper?: boolean
 }
 
 
@@ -119,6 +121,10 @@ export const Config: z<Config> = z.object({
     'zh-CN': { $description: '键盘停止多少毫秒后恢复操作' },
     'en-US': { $description: 'Milliseconds of keyboard quiet before resuming' },
   }),
+  nativeHelper: z.boolean().default(true).volatile().i18n({
+    'zh-CN': { $description: '截图、显示器与窗口查询、无浮层时的输入改由 DeepSeek Harness 自带的 koffi 在进程内完成（更快，也不受智能应用控制拦截）；关闭则全部交给 C# 辅助程序' },
+    'en-US': { $description: 'Take screenshots, display and window queries, and input while no overlay is shown in-process through the koffi that DeepSeek Harness ships (faster, and not blocked by Smart App Control); off sends everything to the C# helper' },
+  }),
   blockedApps: z.array(z.string()).default([]).volatile().i18n({
     'zh-CN': { $description: '禁止操控的应用（名称或 exe，如 “alipay”）。常见密码管理器默认已禁止。' },
     'en-US': { $description: 'Apps that may never be controlled (names or exe). Common password managers are always blocked.' },
@@ -141,7 +147,8 @@ export function apply(ctx: Context, config: Config = {}): void {
   }
   const settings = (): Settings => resolveConfig(config)
   const log = (message: string): void => ctx.logger.info(message)
-  const helper = new HelperClient(message => ctx.logger.warn(message))
+  // Commands that koffi can take run in-process (no exe for Smart App Control to refuse); the rest go to the C# helper.
+  const helper = new NativeHelper(new HelperClient(message => ctx.logger.warn(message)), message => ctx.logger.warn(message), () => settings().nativeHelper)
   const access = new AccessControl()
   const iconPath = helperAssetPath('deepseek-white.png')
   const overlay = new OverlayController(helper, settings, log, iconPath)
