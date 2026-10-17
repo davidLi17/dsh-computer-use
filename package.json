@@ -27,6 +27,7 @@
   },
   "files": [
     "lib/index.js",
+    "lib/native-worker.js",
     "lib/client.js",
     "lib/types/**/*.d.ts",
     "helper/CuHelper.cs",

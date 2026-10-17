@@ -15,6 +15,7 @@ import type {} from './system-prompt-service.js'
 import { AccessControl, normalizeApp, type AccessMode } from './access.js'
 import { Computer, type CallContext, type Settings, type TypingMode } from './computer.js'
 import { HelperClient, helperAssetPath } from './helper-client.js'
+import { NativeHelper } from './native/native-helper.js'
 import { OverlayController, type CancellableAgent, type HostWindowMode, type StreamFrame } from './overlay.js'
 import { promptText } from './prompt.js'
 import { SkillStore } from './skills.js'
@@ -141,7 +142,8 @@ export function apply(ctx: Context, config: Config = {}): void {
   }
   const settings = (): Settings => resolveConfig(config)
   const log = (message: string): void => ctx.logger.info(message)
-  const helper = new HelperClient(message => ctx.logger.warn(message))
+  // Commands that koffi can take run in-process (no exe for Smart App Control to refuse); the rest go to the C# helper.
+  const helper = new NativeHelper(new HelperClient(message => ctx.logger.warn(message)), message => ctx.logger.warn(message))
   const access = new AccessControl()
   const iconPath = helperAssetPath('deepseek-white.png')
   const overlay = new OverlayController(helper, settings, log, iconPath)

@@ -3,7 +3,8 @@ import type { UserConfig } from 'tsdown'
 
 const host: UserConfig = {
   name: '@copylee/dsh-computer-use',
-  entry: ['lib/types/index.js'],
+  // The koffi worker is its own file: worker_threads loads it by path.
+  entry: { index: 'lib/types/index.js', 'native-worker': 'lib/types/native/worker.js' },
   outDir: 'lib',
   format: ['esm'],
   platform: 'node',

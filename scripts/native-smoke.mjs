@@ -1,8 +1,10 @@
 // Spike: compare the koffi path (src/native) with the C# helper on this machine.
-//   pnpm run build && node scripts/native-smoke.mjs
+//   pnpm run build && node scripts/native-smoke.mjs [--notepad]
 // Uses DSH's own koffi.node (DSH_KOFFI_PATH overrides the lookup). Moves the
-// cursor and puts it back; sends no clicks or keys.
+// cursor and puts it back; clicks and keys only with --notepad, into its own scratch file.
 import { mkdirSync, writeFileSync } from 'node:fs'
+import { setTimeout as sleep } from 'node:timers/promises'
+import { fileURLToPath } from 'node:url'
 import { HelperClient } from '../lib/types/helper-client.js'
 import { NativeHelper } from '../lib/types/native/native-helper.js'
 import { findKoffi } from '../lib/types/native/koffi-path.js'
@@ -26,7 +28,7 @@ async function timed(label, run, times = 5) {
 
 // Start both once so startup cost is reported apart from the calls.
 let t = performance.now(); await csharp.call('ping'); console.log(`C# helper start: ${(performance.now() - t).toFixed(0)} ms`)
-t = performance.now(); await native.call('ping'); console.log(`koffi worker start: ${(performance.now() - t).toFixed(0)} ms`)
+t = performance.now(); await native.call('cursor'); console.log(`koffi worker start: ${(performance.now() - t).toFixed(0)} ms`)
 
 const [dc, dn] = [await csharp.call('displays'), await native.call('displays')]
 console.log('displays equal:', JSON.stringify(dc) === JSON.stringify(dn))
@@ -49,7 +51,8 @@ clearInterval(timer)
 console.log('event-loop ticks during one koffi screenshot:', ticks)
 
 await native.call('screenshot', { ...rect, mark: true })
-console.log('compare right after mark:', await native.call('screenshot', { ...rect, compare: true }))
+const again = await native.call('screenshot', { ...rect, compare: true })
+console.log('compare right after mark:', again.unchanged === true ? 'unchanged' : 'changed (something on screen moved in between)')
 
 const before = await native.call('cursor')
 const target = { x: d.x + Math.round(d.width / 2), y: d.y + Math.round(d.height / 2) }
@@ -57,5 +60,47 @@ await native.call('move', target)
 const [cn, cc] = [await native.call('cursor'), await csharp.call('cursor')]
 await native.call('move', before)
 console.log('cursor after move:', cn, 'C# sees', cc, 'expected', target)
+
+if (process.argv.includes('--notepad')) {
+  // click / keys through koffi into a scratch file of our own. The foreground
+  // window is checked before every input: never send blind input to the user's apps.
+  const file = new URL('native-notepad.txt', out)
+  writeFileSync(file, '')
+  await native.call('launch', { target: 'notepad.exe', args: `"${fileURLToPath(file)}"` })
+  const ours = async () => {
+    const fg = await native.call('foreground')
+    return /notepad/i.test(fg.exe) && fg.title.includes('native-notepad') ? fg : undefined
+  }
+  const editor = async () => (await native.call('ui', {})).elements.find(e => e.role === 'Document' || e.role === 'Edit')
+  let fg
+  for (let i = 0; i < 40 && !(fg = await ours()); i++) await sleep(250)
+  const doc = fg && await editor()
+  if (!doc) {
+    console.log('ABORT: native-notepad.txt is not the foreground window (or has no editor); no input sent.')
+  } else {
+    console.log('routes through koffi: click', native.routesNative('click'), '| keys', native.routesNative('keys'))
+    const at = { x: Math.round(doc.x + doc.width / 2), y: Math.round(doc.y + doc.height / 2) }
+    const hit = await native.call('window_at', at)
+    if (hit.hwnd !== fg.hwnd) {
+      console.log('ABORT: the editor centre is not our Notepad window; no input sent.')
+    } else {
+      await native.call('click', { ...at, button: 'left', count: 1, modifiers: [] })
+      const vk = text => [...text].map(c => (c >= 'A' && c <= 'Z' ? [0x10, c.charCodeAt(0)] : [c.toUpperCase().charCodeAt(0)]))
+      if (await ours()) await native.call('keys', { combos: vk('koffi 42') })
+      await sleep(300)
+      const first = (await editor())?.value
+      console.log(first === 'koffi 42' ? 'PASS: click + keys typed "koffi 42"' : `CHECK: editor holds ${JSON.stringify(first)}`)
+      // ctrl+A, then shift+A shift+B: modifier combos replace the selection.
+      if (await ours()) await native.call('keys', { combos: [[0x11, 0x41], ...vk('AB')] })
+      await sleep(300)
+      const second = (await editor())?.value
+      console.log(second === 'AB' ? 'PASS: ctrl+A and shift combos' : `CHECK: editor holds ${JSON.stringify(second)}`)
+      const sel = await native.call('screenshot', { x: doc.x, y: doc.y, width: doc.width, height: doc.height, outWidth: Math.round(doc.width / 2), outHeight: Math.round(doc.height / 2), quality: 80 })
+      writeFileSync(new URL('native-notepad.jpg', out), Buffer.from(sel.data, 'base64'))
+    }
+    if (await ours()) await native.call('keys', { combos: [[0x11, 0x53], [0x11, 0x57]] }) // ctrl+s, ctrl+w on our own file
+    await sleep(500)
+  }
+}
 
 native.dispose()
