@@ -5,7 +5,7 @@
 ## 做法
 
 - **koffi 的来源**：用 DSH 自带的 `koffi.node`（`resources/app.asar.unpacked/dsh/node_modules/@koromix/koffi-win32-x64/win32_x64/koffi.node`，3.1.1），**不**用 npm 上的 koffi。前者有 DeepSeek 的 Authenticode 签名（`Get-AuthenticodeSignature` 为 Valid），SAC 下能加载；后者没有签名，和 cu-helper.exe 一样会被拦。npm 上的 `koffi@3.1.1` 只作为 devDependency 提供类型。
-- **查找路径**（`src/native/koffi-path.ts`）：`DSH_KOFFI_PATH` → `process.resourcesPath` → `dirname(process.execPath)/resources`（宿主以 `DeepSeek Harness.exe` + `ELECTRON_RUN_AS_NODE` 运行，没有 resourcesPath）→ `%LOCALAPPDATA%\Programs\DeepSeek Harness`。
+- **查找路径**（`src/native/koffi-path.ts`）：`DSH_KOFFI_PATH` → `process.resourcesPath` → `dirname(process.execPath)/resources`（宿主以 `DeepSeek Harness.exe` + `ELECTRON_RUN_AS_NODE` 运行，没有 resourcesPath）→ `%LOCALAPPDATA%\Programs\DeepSeek Harness` → 从宿主入口脚本（`process.argv[1]`）逐级向上找 `node_modules/@koromix/koffi-win32-x64/...`。最后这一条对应用 npm 全局安装的 CLI（`node …/@deepseek-ai/dsh/lib/bin.js`）：它自带同一个 koffi 3.1.1，但**没有签名**。宿主进程自己就会加载这个文件，所以我们用它不会比宿主更差；如果被拒，就回退到 C#。
 - **线程**（`src/native/worker.ts`）：所有调用放在一个 worker_thread 里，线程级 `SetThreadDpiAwarenessContext(-4)`（每显示器 v2，和 C# helper 一样用物理像素）；Sleep 用 `Atomics.wait`，不阻塞宿主的事件循环。
 - **混合**（`src/native/native-helper.ts`）：`NativeHelper` 实现 `HelperLike`，已接进插件（`src/index.ts`）。找到 koffi.node 就用它，其余命令转给原来的 C# helper；worker 启动失败时永久回退到 C#。worker 单独打包成 `lib/native-worker.js`。
 - **路由**：C# helper 在每次指针或按键操作前后都会处理浮层：把药丸挪开（Dodge）、让卡片暂时可点穿（PassThrough）、等待指令输入框关闭；截图时还要避开窗口卡片。所以：
@@ -33,6 +33,14 @@
 worker 截图期间，事件循环的 5 ms 定时器仍在跳动，宿主没有被阻塞。
 
 `--notepad`（在 DSH 运行时下执行）：打开 Notepad 编辑自己的临时文件，确认两条命令都走 koffi 后，先用 `click` 聚焦编辑区，再用 `keys` 输入 `koffi 42`（含 shift 组合），UIA 读回的内容一致，PASS；然后 ctrl+A 加 shift+A、shift+B，内容变成 `AB`，PASS；最后 ctrl+S 保存，文件内容就是 `AB`。每次发送输入前都会核对前台窗口标题。注意：Win11 的 Notepad 会恢复上次会话的标签页，关闭临时文件的标签后，Notepad 窗口可能还开着。
+
+## 真实 DSH 会话（临时 profile）
+
+`DSH_HOME=<临时目录> dsh cuspike --from-default-profile web`，用 `dsh plugin --profile cuspike add file:<tgz>` 装上打包好的插件，启动 `dsh --profile cuspike --no-open --port 18765`，在网页里让 agent “只截屏，说说屏幕上有什么”。
+
+- 第一次：截图和回答都正确，但宿主进程里**没有** gdiplus.dll，而 `cu-helper.exe` 在运行，说明全部走了 C#。原因是 PATH 上的 `dsh` 是 npm 安装的 CLI，跑在普通 node.exe 上，原来的查找路径都没覆盖到它（加上了上面最后一条）。
+- 修正后：宿主进程（node.exe）里加载了 `koffi.node` 和 `gdiplus.dll`，说明截图由 koffi worker 完成；`cu-helper.exe` 也由同一个宿主启动，负责浮层。这正是设计的混合方式。agent 正确读出了右下角的时间。
+- 插件日志（包括 `koffi helper ready`）没有写进这个 profile 的磁盘，所以判断只能靠进程加载了哪些模块。
 
 ## 踩到的坑
 

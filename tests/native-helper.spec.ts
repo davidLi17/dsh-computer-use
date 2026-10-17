@@ -14,7 +14,7 @@ function fake(): HelperLike & { calls: string[] } {
 
 describe('NativeHelper routing', () => {
   it('sends everything to the C# helper when koffi.node is missing', () => {
-    const helper = new NativeHelper(fake(), () => {}, undefined)
+    const helper = new NativeHelper(fake(), () => {}, null)
     expect(helper.routesNative('displays')).toBe(false)
     expect(helper.routesNative('screenshot')).toBe(false)
   })

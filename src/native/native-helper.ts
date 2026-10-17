@@ -40,10 +40,11 @@ export class NativeHelper implements HelperLike {
   constructor(
     private readonly fallback: HelperLike,
     private readonly log: (message: string) => void = () => {},
-    private readonly koffiPath = findKoffi(),
+    /** null: no koffi.node, every command goes to the C# helper. */
+    private readonly koffiPath: string | null = findKoffi() ?? null,
   ) {}
 
-  get available(): boolean { return this.koffiPath !== undefined && !this.broken }
+  get available(): boolean { return this.koffiPath !== null && !this.broken }
 
   /** Whether a command would run through koffi right now. */
   routesNative(cmd: string): boolean {
@@ -108,7 +109,12 @@ export class NativeHelper implements HelperLike {
       const worker = new Worker(workerPath(), { workerData: { koffiPath: this.koffiPath } })
       worker.unref()
       worker.on('message', (message: { id?: number; ok?: boolean; result?: unknown; error?: string; event?: string }) => {
-        if (message.event === 'ready') { this.worker = worker; resolve(worker); return }
+        if (message.event === 'ready') {
+          this.worker = worker
+          this.log(`computer-use: koffi helper ready (${String(this.koffiPath)})`)
+          resolve(worker)
+          return
+        }
         if (typeof message.id !== 'number') return
         const entry = this.pending.get(message.id)
         if (!entry) return
