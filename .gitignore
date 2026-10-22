@@ -1,5 +1,12 @@
 node_modules/
-lib/
+lib/*
+!lib/index.js
+!lib/native-worker.js
+!lib/client.js
+!lib/types/
+lib/types/**
+!lib/types/**/
+!lib/types/**/*.d.ts
 *.tgz
 .DS_Store
 *.log

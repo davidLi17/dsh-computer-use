@@ -50,3 +50,20 @@ describe('settings', () => {
     expect(resolveConfig({ minimizeHostWindow: true, hostWindow: 'keep' }).hostWindow).toBe('keep')
   })
 })
+
+describe('source-install release assets', () => {
+  it('ships the bundled guide and both references', () => {
+    expect(pkg.files).toContain('skills/**/*.md')
+    for (const path of ['SKILL.md', 'references/saving.md', 'references/troubleshooting.md']) {
+      expect(existsSync(new URL(`../skills/windows-computer-use/${path}`, import.meta.url))).toBe(true)
+    }
+  })
+  it('does not require a prepare script for GitHub source installation', () => {
+    const metadata = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+    expect(metadata.scripts.prepare).toBeUndefined()
+    for (const path of ['lib/index.js', 'lib/native-worker.js', 'lib/client.js']) {
+      expect(pkg.files).toContain(path)
+      expect(existsSync(new URL(`../${path}`, import.meta.url))).toBe(true)
+    }
+  })
+})

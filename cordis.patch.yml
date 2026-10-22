@@ -2,3 +2,11 @@
     - id: copylee-computer-use
       name: '@copylee/dsh-computer-use'
       config: {}
+    # Dedicated bundled provider: never scans cwd, home, or default skill roots.
+    - id: copylee-computer-use-skills
+      name: '@deepseek-ai/dsh-skill-filesystem'
+      config:
+        providerName: copylee-computer-use
+        includeDefaultRoots: false
+        bundledSkillDir: !!js process.getBuiltinModule('node:path').join(process.getBuiltinModule('node:path').dirname(process.getBuiltinModule('node:module').createRequire(baseUrl).resolve('@copylee/dsh-computer-use/package.json')), 'skills')
+        watch: false

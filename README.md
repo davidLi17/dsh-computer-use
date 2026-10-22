@@ -140,3 +140,11 @@ pnpm pack:check
 ## 许可证
 
 MIT
+
+## 渐进披露（本 Fork）
+
+常驻 `computer-use:guide` 只保留技能入口、授权及安全边界；具体操作流程由随包的 DSH 技能 `windows-computer-use` 提供，保存及故障处理按需读取 `references/`。独立 filesystem provider 只挂载本插件安装目录内的 `skills/`（禁用默认搜索根），不会扫描工作目录或用户技能目录。现有 `app_skill` 应用笔记及 `open_application` 附带笔记、每会话去重机制保持原样，不迁移用户存储。
+
+支持包含官方 skill registry / filesystem provider 的 DSH（已核 0.2.0-rc.2 与 0.2.1-rc.2）。filesystem provider 声明为必需 peer，复用宿主版本，不额外固定安装旧版核心依赖；若缺少该能力，请先升级完整 DSH，而不是单独加载主插件。安装此 Fork 可在 DSH 添加插件中使用 `github:davidLi17/dsh-computer-use#main`。仓库保留由当前源码构建的 `lib/index.js`、`lib/native-worker.js`、`lib/client.js` 与类型声明，GitHub 源安装无需运行 `prepare`，也不要求用户允许依赖安装脚本。没有提交旧版原生二进制：C# helper 继续按源码哈希编译缓存，原生 worker 与当前源码一起构建。
+
+维护发布前必须依次执行 `pnpm typecheck`、`pnpm test`、`pnpm build`、`pnpm pack:check`，并提交匹配源码的发布产物；本包不通过安装生命周期自动重建。Windows 真机验收另需在 DSH 中验证技能发现与参考文件读取、按应用授权/全部允许、打开应用与重复笔记去重、保存、Esc/用户接管及多显示器。跨平台 mock 测试不能代替真机验收。
