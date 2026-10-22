@@ -1,5 +1,6 @@
 # dsh-computer-use
 
+[![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
 [![npm](https://img.shields.io/npm/v/@copylee/dsh-computer-use)](https://www.npmjs.com/package/@copylee/dsh-computer-use)
 
 让 DeepSeek Harness 直接操控你的 Windows 电脑：看屏幕、点鼠标、敲键盘，打开应用、切换窗口、读写剪贴板。控制期间屏幕四周会泛起**橙色光晕**，顶部出现“**DeepSeek Harness 正在操控你的电脑**”提示条，DeepSeek Harness 自己最小化，右下角换成一张**迷你进度卡片**，两行滚动显示 AI 的回复正文和思考 / 工具调用，让你同时看清操作过程和 AI 在想什么。按 **Esc** 暂停 / 继续，点“停止”结束本轮。
