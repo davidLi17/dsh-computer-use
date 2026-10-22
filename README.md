@@ -148,3 +148,5 @@ MIT
 支持包含官方 skill registry / filesystem provider 的 DSH（已核 0.2.0-rc.2 与 0.2.1-rc.2）。filesystem provider 声明为必需 peer，复用宿主版本，不额外固定安装旧版核心依赖；若缺少该能力，请先升级完整 DSH，而不是单独加载主插件。安装此 Fork 可在 DSH 添加插件中使用 `github:davidLi17/dsh-computer-use#main`。仓库保留由当前源码构建的 `lib/index.js`、`lib/native-worker.js`、`lib/client.js` 与类型声明，GitHub 源安装无需运行 `prepare`，也不要求用户允许依赖安装脚本。没有提交旧版原生二进制：C# helper 继续按源码哈希编译缓存，原生 worker 与当前源码一起构建。
 
 维护发布前必须依次执行 `pnpm typecheck`、`pnpm test`、`pnpm build`、`pnpm pack:check`，并提交匹配源码的发布产物；本包不通过安装生命周期自动重建。Windows 真机验收另需在 DSH 中验证技能发现与参考文件读取、按应用授权/全部允许、打开应用与重复笔记去重、保存、Esc/用户接管及多显示器。跨平台 mock 测试不能代替真机验收。
+
+本次实测（JavaScript 字符数，不等同模型 token）：原常驻指南按应用模式 5,577、全部允许模式 5,425；新指南分别 953、919，加上技能目录名称与摘要 165 后为 1,118、1,084，减少 79.95% / 80.02%。长正文只在读取技能时加载；应用笔记与其他工具 schema 的常驻成本不计入这项指南对比。
