@@ -1,9 +1,7 @@
 # Saving files
 
-- Saving: in any Save As dialog do not click through folders; press alt+n (file name box), ctrl+a, type the full path including the file name, then Return. Office apps: F12 opens that classic dialog directly. To check a saved file, look at the exact path; never search a whole drive or user profile recursively.
+Use the task's intended file name and destination. Saving does not authorize an overwrite, upload, external share or purchase; obtain any missing authorization.
 
-Before saving, confirm the intended file name and destination from the task. Use the app's visible Save/Save As flow. If overwriting or otherwise deleting user data was not authorized, ask before confirming. Do not treat a save dialog as permission for a purchase, send, upload or external share.
+Windows Save As dialogs usually accept a full path in the file-name field (often Alt+N); Office's F12 opens the classic dialog. These are shortcuts, not a required sequence: custom dialogs and shortcuts vary by app.
 
-When the user requested writing in an app, enter the content with computer type, including long or multi-line text; do not bypass the visible editor by writing from a shell. The plugin manages clipboard handling; do not use Set-Clipboard or clip.
-
-After saving, inspect the resulting app state and exact requested path. If a confirmation, extension warning or error appears, read it and resolve only within authorization. Do not report success from a click alone. For a stalled dialog or partial batch, read [Troubleshooting](troubleshooting.md) before retrying.
+Establish that the requested file was saved, not merely that a button was clicked. Relevant evidence may be the app's saved state or the exact output path; broad recursive disk searches are unnecessary. Resolve extension warnings or errors within the task's scope.

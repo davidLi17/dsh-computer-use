@@ -4,6 +4,8 @@ import { promptText } from '../src/prompt.js'
 
 // Baseline: e6272a6, exact old promptText output lengths (JS UTF-16 code units).
 const BEFORE = { 'per-app': 5577, 'allow-all': 5425 }
+// Before Context Over Control: 69249e8, resident guide plus catalog.
+const PREVIOUS = { 'per-app': 1118, 'allow-all': 1084 }
 const skill = readFileSync(new URL('../skills/windows-computer-use/SKILL.md', import.meta.url), 'utf8')
 const catalog = skill.match(/^name: (.+)$/m)![1]! + '\n' + skill.match(/^description: (.+)$/m)![1]!
 
@@ -12,6 +14,9 @@ describe('progressive desktop guidance', () => {
     expect(promptText(mode).length + catalog.length).toBeLessThanOrEqual(BEFORE[mode] * 0.3)
     expect(promptText(mode)).toContain('windows-computer-use')
     expect(promptText(mode)).not.toContain('{{')
+  })
+  it.each(['per-app', 'allow-all'] as const)('reduces the %s progressive guide by another 25%', mode => {
+    expect(promptText(mode).length + catalog.length).toBeLessThanOrEqual(PREVIOUS[mode] * 0.75)
   })
   it('only asks for app approval in per-app mode', () => {
     expect(promptText('per-app')).toContain('request_access')
@@ -32,5 +37,11 @@ describe('progressive desktop guidance', () => {
       expect(skill).toContain(`references/${ref}.md`)
       expect(readFileSync(new URL(`../skills/windows-computer-use/references/${ref}.md`, import.meta.url), 'utf8').length).toBeGreaterThan(500)
     }
+  })
+  it('keeps the complete on-demand context below half its previous size', () => {
+    const references = ['saving', 'troubleshooting'].map(ref =>
+      readFileSync(new URL(`../skills/windows-computer-use/references/${ref}.md`, import.meta.url), 'utf8'))
+    // Previous SKILL.md + references: 7,319 + 1,190 + 2,363 UTF-16 code units.
+    expect(skill.length + references.reduce((sum, text) => sum + text.length, 0)).toBeLessThanOrEqual(10_872 * 0.5)
   })
 })

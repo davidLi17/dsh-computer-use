@@ -143,10 +143,10 @@ MIT
 
 ## 渐进披露（本 Fork）
 
-常驻 `computer-use:guide` 只保留技能入口、授权及安全边界；具体操作流程由随包的 DSH 技能 `windows-computer-use` 提供，保存及故障处理按需读取 `references/`。独立 filesystem provider 只挂载本插件安装目录内的 `skills/`（禁用默认搜索根），不会扫描工作目录或用户技能目录。现有 `app_skill` 应用笔记及 `open_application` 附带笔记、每会话去重机制保持原样，不迁移用户存储。
+常驻 `computer-use:guide` 只保留技能入口、授权及安全边界；随包的 DSH 技能 `windows-computer-use` 按 Context Over Control 提供目标、能力与必要契约，操作顺序、批量粒度及验证方式由模型按任务判断。保存及故障处理按需读取 `references/`。独立 filesystem provider 只挂载本插件安装目录内的 `skills/`（禁用默认搜索根），不会扫描工作目录或用户技能目录。现有 `app_skill` 应用笔记及 `open_application` 附带笔记、每会话去重机制保持原样，不迁移用户存储。
 
 支持包含官方 skill registry / filesystem provider 的 DSH（已核 0.2.0-rc.2 与 0.2.1-rc.2）。filesystem provider 声明为必需 peer，复用宿主版本，不额外固定安装旧版核心依赖；若缺少该能力，请先升级完整 DSH，而不是单独加载主插件。安装此 Fork 可在 DSH 添加插件中使用 `github:davidLi17/dsh-computer-use#main`。仓库保留由当前源码构建的 `lib/index.js`、`lib/native-worker.js`、`lib/client.js` 与类型声明，GitHub 源安装无需运行 `prepare`，也不要求用户允许依赖安装脚本。没有提交旧版原生二进制：C# helper 继续按源码哈希编译缓存，原生 worker 与当前源码一起构建。
 
 维护发布前必须依次执行 `pnpm typecheck`、`pnpm test`、`pnpm build`、`pnpm pack:check`，并提交匹配源码的发布产物；本包不通过安装生命周期自动重建。Windows 真机验收另需在 DSH 中验证技能发现与参考文件读取、按应用授权/全部允许、打开应用与重复笔记去重、保存、Esc/用户接管及多显示器。跨平台 mock 测试不能代替真机验收。
 
-本次实测（JavaScript 字符数，不等同模型 token）：原常驻指南按应用模式 5,577、全部允许模式 5,425；新指南分别 953、919，加上技能目录名称与摘要 165 后为 1,118、1,084，减少 79.95% / 80.02%。长正文只在读取技能时加载；应用笔记与其他工具 schema 的常驻成本不计入这项指南对比。
+0.8.2 实测（JavaScript UTF-16 字符数，不等同模型 token）：常驻指南按应用模式 642、全部允许模式 649，加上技能目录名称与摘要 123 后为 765、772；相较 0.8.1 的 1,118、1,084 再减少 31.57% / 28.78%。按需 Skill 正文及两份参考文件共从 10,872 减至 4,724 字符（减少 56.55%），未将删去的微观步骤转移到其他提示词。保留截图/DPI、批量中断、托盘、可见输入等真实约束，并纠正 zoom 局部像素不能直接用作点击坐标的说明。应用笔记与其他工具 schema 的常驻成本不计入这项指南对比。

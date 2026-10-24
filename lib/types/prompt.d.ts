@@ -1,3 +1,3 @@
-/** Short always-on guidance. Long procedures are loaded through the bundled DSH skill. */
+/** Always-on entry point and safety boundaries; operating context lives in the bundled skill. */
 import type { AccessMode } from './access.js';
 export declare function promptText(mode: AccessMode): string;
