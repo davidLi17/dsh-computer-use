@@ -17,7 +17,7 @@ Complete the user's task in their chosen app with grounded actions and minimal d
 ## Essential contracts
 
 - Coordinates refer to the current full screenshot, never guessed positions. The plugin handles DPI, scaling and monitor offsets. A zoom image is only a detail view: its pixels are NOT action coordinates. Refresh observations when window or display geometry changes.
-- target identifies a named control; wait with until can synchronize on a window or control. These support predictable mid-batch transitions. If a later decision needs an intermediate result, observe it before continuing.
+- target identifies a named control; when names collide, use the automationId returned by ui_elements as id:<AutomationId> or #<AutomationId>. Duplicate IDs remain ambiguous; wait with until can synchronize on a window or control. These support predictable mid-batch transitions. If a later decision needs an intermediate result, observe it before continuing.
 - Actions normally return a settled screenshot, so an extra wait/capture is often redundant. Auto-screenshot can be disabled and unchanged images can be omitted; use the actual result to judge whether observation is sufficient.
 - For requested in-app writing, use computer type, including long text. It handles visible entry and the clipboard; shell-written files and Set-Clipboard/clip bypass that behavior.
 - Tray apps are still running. Use open_application to restore them; another instance requires the user's explicit request (new_instance: true). Do not show or kill hidden windows through a shell: Electron/Qt apps can freeze or trigger another login.

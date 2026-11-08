@@ -26,6 +26,8 @@ export interface TargetQuery {
     /** UI Automation control type, when the target named one ("按钮:保存"). */
     role?: string;
     name: string;
+    /** Explicit AutomationId, when the target was "id:<AutomationId>" or "#<AutomationId>". */
+    automationId?: string;
 }
 export type TargetMatch = {
     kind: 'found';
@@ -37,7 +39,8 @@ export type TargetMatch = {
     kind: 'missing';
     suggestions: string[];
 };
-/** "按钮:保存" → Button named 保存; a colon that is not after a known role stays part of the name. */
+/** "按钮:保存" → Button named 保存; a colon that is not after a known role stays part of the name.
+ *  "id:NavTasksButton" / "#NavTasksButton" → match the UIA AutomationId instead of the name. */
 export declare function parseTarget(target: string): TargetQuery & {
     roles?: string[];
 };

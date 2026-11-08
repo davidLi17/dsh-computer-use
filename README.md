@@ -22,7 +22,7 @@
 | 截图即坐标系 | 模型只用最近一张截图的像素坐标，DPI、缩放、多显示器偏移全部由插件换算，高分屏（200% 缩放）也点得准 |
 | 动作后自动回传截图 | 点击 / 输入 / 按键 / 滚动后，**等画面不再变化**（页面加载、动画结束，最多约 2.5 秒）再截图；`wait` 也直接带回截图，“等一下再看”只需一步，而且画面一静止就提前结束，不会死等满时长；画面与上一张截图完全相同时不再发图，只告诉模型“没有可见变化”，省 token |
 | 批量动作 | `computer_batch` 一次执行“点输入框 → 输入 → 回车”等多步，最后只截一张图 |
-| 按名称点控件 | 动作里用 `target`（控件的可见名称，如 `"保存"`、`"按钮:确定"`）代替坐标。上一张截图里还没出现的控件也能点，比如上一步才打开的菜单项、才弹出的对话框按钮；最多等 3 秒它出现。重名时不猜，直接把候选和坐标告诉模型 |
+| 按名称点控件 | 动作里用 `target`（控件的可见名称，如 `"保存"`、`"按钮:确定"`）代替坐标。上一张截图里还没出现的控件也能点，比如上一步才打开的菜单项、才弹出的对话框按钮；最多等 3 秒它出现。重名时不猜，直接把候选和坐标告诉模型；可用 `ui_elements` 返回的完整 `automationId`，以 `target: "id:<AutomationId>"`（或 `"#<AutomationId>"`）明确指定。ID 仍重名时不猜 |
 | 等条件而不是等时间 | `wait` 加 `until`（`"window:另存为"`、`"target:保存"`）：窗口或控件一出现（或一消失）就继续，超时才报错。配合 `target`，“按 Ctrl+S → 等另存为 → 填文件名 → 点保存”可以写进同一个批量调用 |
 | 把窗口读成文本 | `ui_elements` 加 `text: true` 直接读出文档、网页、聊天回复或日志的文字（默认取末尾 4000 字），比滚动加放大截图快，也能逐字引用；批量调用加 `finish: "text"` 可以用文字代替结尾的截图 |
 | 按应用授权 | 先 `request_access` 列出要操控的应用，经 DSH 原生审批后才能操作；也可改为“全部允许” |
@@ -41,13 +41,16 @@
 
 ## 安装
 
-DSH 桌面版：**插件 → 添加插件**，输入 `@copylee/dsh-computer-use`，安装后启用。
+本仓库是 davidLi17 的定制分支，保留按需 Windows 技能与精简常驻说明。此分支不发布到 npm，`@copylee/dsh-computer-use@latest` 安装的是上游版本。
 
-命令行（web 等其他 profile）：
+在 Windows 上克隆本分支，再从对应 DSH profile 安装。仓库已提交构建产物，不需要安装时重新构建：
 
 ```bash
-dsh plugin --profile web add @copylee/dsh-computer-use@latest
+git clone --branch main https://github.com/davidLi17/dsh-computer-use.git
+dsh plugin --profile web add link:"$PWD/dsh-computer-use"
 ```
+
+上例适用于 Git Bash / 类 Unix shell；PowerShell 可使用 `dsh plugin --profile web add "link:$((Get-Location).Path)/dsh-computer-use"`。桌面 profile 请把 `web` 换为 `desktop`。安装后启用并重启对应 profile。
 
 要求：Windows 10 2004+ / Windows 11（自带 .NET Framework 4.8），DSH 0.2.0-rc.2 或更高。截图需要**支持图片输入的模型**（如 DeepSeek V4.1 Flash）；纯文本模型会自动改用 `ui_elements`。
 

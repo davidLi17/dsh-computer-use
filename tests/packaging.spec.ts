@@ -19,6 +19,11 @@ describe('packaging', () => {
     expect(pkg.files).toContain('helper/deepseek-white.png')
     expect(existsSync(helperSourcePath())).toBe(true)
   })
+  it('preserves complete AutomationIds in the shipped helper', () => {
+    const source = readFileSync(helperSourcePath(), 'utf8')
+    expect(source).toContain('if (aid.Length > 0) d["automationId"] = aid;')
+    expect(source).not.toContain('aid.Substring(')
+  })
   it('keeps the helper within C# 5 (in-box csc)', () => {
     const source = readFileSync(helperSourcePath(), 'utf8')
     expect(source).not.toMatch(/\$"/)

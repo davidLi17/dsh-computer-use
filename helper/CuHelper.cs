@@ -1974,7 +1974,7 @@ namespace DshComputerUse
                 if (type == ControlType.Group) d["editable"] = true;
                 d["name"] = name.Length > 120 ? name.Substring(0, 120) + "…" : name;
                 string aid = (el.GetCachedPropertyValue(AutomationElement.AutomationIdProperty) as string) ?? "";
-                if (aid.Length > 0) d["automationId"] = aid.Length > 120 ? aid.Substring(0, 120) + "…" : aid;
+                if (aid.Length > 0) d["automationId"] = aid;
                 d["focusable"] = (bool)el.GetCachedPropertyValue(AutomationElement.IsKeyboardFocusableProperty);
                 object value = el.GetCachedPropertyValue(ValuePattern.ValueProperty, true);
                 if (value is string && ((string)value).Length > 0) { var v = (string)value; d["value"] = v.Length > 120 ? v.Substring(0, 120) + "…" : v; }

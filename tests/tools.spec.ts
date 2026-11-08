@@ -497,6 +497,36 @@ describe('one call for a whole sequence', () => {
     expect(t.helper.calls.filter(c => c.cmd === 'ui').map(c => c.args.popupsOnly === true)).toEqual([false])
   })
 
+  it('targets a long AutomationId without guessing between equal names', async () => {
+    const t = setup()
+    t.access.grant('s1', ['Chrome'])
+    const prefix = 'x'.repeat(140)
+    t.helper.elements = [{ ...SAVE, automationId: prefix + 'a' }, { ...SAVE, x: 100, automationId: prefix + 'b' }]
+    await t.run('computer', { action: 'left_click', target: 'id:' + prefix + 'b' })
+    const click = t.helper.calls.find(c => c.cmd === 'click')!
+    expect([click.args.x, click.args.y]).toEqual([180, 830])
+  })
+
+  it('does not let AutomationId targets bypass app access or host protection', async () => {
+    const ungranted = setup()
+    ungranted.helper.elements = [{ ...SAVE, automationId: 'save' }]
+    await expect(ungranted.run('computer', { action: 'left_click', target: 'id:save' })).rejects.toThrow(/request_access/)
+    expect(ungranted.helper.calls.some(c => c.cmd === 'click')).toBe(false)
+    const host = setup({ mode: 'allow-all' })
+    host.helper.foreground = HOST
+    host.helper.elements = [{ ...SAVE, automationId: 'save' }]
+    await expect(host.run('computer', { action: 'left_click', target: '#save' })).rejects.toThrow(/DeepSeek Harness window/)
+    expect(host.helper.calls.some(c => c.cmd === 'click')).toBe(false)
+  })
+
+  it('does not dispatch when AutomationIds are duplicated', async () => {
+    const t = setup()
+    t.access.grant('s1', ['Chrome'])
+    t.helper.elements = [{ ...SAVE, automationId: 'save' }, { ...SAVE, x: 100, automationId: 'save' }]
+    await expect(t.run('computer', { action: 'left_click', target: 'id:save' })).rejects.toThrow(/matches 2 controls/)
+    expect(t.helper.calls.some(c => c.cmd === 'click')).toBe(false)
+  })
+
   it('waits for a control that is still appearing', async () => {
     const t = setup()
     t.access.grant('s1', ['Chrome'])
