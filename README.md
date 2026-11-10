@@ -148,8 +148,17 @@ MIT
 
 常驻 `computer-use:guide` 只保留技能入口、授权及安全边界；随包的 DSH 技能 `windows-computer-use` 按 Context Over Control 提供目标、能力与必要契约，操作顺序、批量粒度及验证方式由模型按任务判断。保存及故障处理按需读取 `references/`。独立 filesystem provider 只挂载本插件安装目录内的 `skills/`（禁用默认搜索根），不会扫描工作目录或用户技能目录。现有 `app_skill` 应用笔记及 `open_application` 附带笔记、每会话去重机制保持原样，不迁移用户存储。
 
-支持包含官方 skill registry / filesystem provider 的 DSH（已核 0.2.0-rc.2 与 0.2.1-rc.2）。filesystem provider 声明为必需 peer，复用宿主版本，不额外固定安装旧版核心依赖；若缺少该能力，请先升级完整 DSH，而不是单独加载主插件。安装此 Fork 可在 DSH 添加插件中使用 `github:davidLi17/dsh-computer-use#main`。仓库保留由当前源码构建的 `lib/index.js`、`lib/native-worker.js`、`lib/client.js` 与类型声明，GitHub 源安装无需运行 `prepare`，也不要求用户允许依赖安装脚本。没有提交旧版原生二进制：C# helper 继续按源码哈希编译缓存，原生 worker 与当前源码一起构建。
+支持包含官方 skill registry / filesystem provider 的 DSH（此前已核 0.2.0-rc.2 与 0.2.1-rc.2；26.11.10-lhg 新增 0.2.2-rc.1 宿主兼容验证）。filesystem provider 声明为必需 peer，复用宿主版本，不额外固定安装旧版核心依赖；若缺少该能力，请先升级完整 DSH，而不是单独加载主插件。安装此 Fork 可在 DSH 添加插件中使用 `github:davidLi17/dsh-computer-use#main`。仓库保留由当前源码构建的 `lib/index.js`、`lib/native-worker.js`、`lib/client.js` 与类型声明，GitHub 源安装无需运行 `prepare`，也不要求用户允许依赖安装脚本。没有提交旧版原生二进制：C# helper 继续按源码哈希编译缓存，原生 worker 与当前源码一起构建。
 
 维护发布前必须依次执行 `pnpm typecheck`、`pnpm test`、`pnpm build`、`pnpm pack:check`，并提交匹配源码的发布产物；本包不通过安装生命周期自动重建。Windows 真机验收另需在 DSH 中验证技能发现与参考文件读取、按应用授权/全部允许、打开应用与重复笔记去重、保存、Esc/用户接管及多显示器。跨平台 mock 测试不能代替真机验收。
 
 0.8.2 实测（JavaScript UTF-16 字符数，不等同模型 token）：常驻指南按应用模式 642、全部允许模式 649，加上技能目录名称与摘要 123 后为 765、772；相较 0.8.1 的 1,118、1,084 再减少 31.57% / 28.78%。按需 Skill 正文及两份参考文件共从 10,872 减至 4,724 字符（减少 56.55%），未将删去的微观步骤转移到其他提示词。保留截图/DPI、批量中断、托盘、可见输入等真实约束，并纠正 zoom 局部像素不能直接用作点击坐标的说明。应用笔记与其他工具 schema 的常驻成本不计入这项指南对比。
+
+
+### DSH 0.2.2-rc.1 兼容验证（26.11.10-lhg）
+
+- 必需的 `@deepseek-ai/dsh-skill-filesystem` peer 明确纳入 `^0.2.2-rc.1`，仍复用完整宿主，不私装旧核心包。开发依赖与锁文件使用官方 rc1、Cordis 4.1.0 和 Schemastery 3.19.0；随源码重建发布产物。
+- 对照官方 `dsh-v0.2.2-rc.1`（`66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`）核对工具注册、pre-execute 审批、agent 状态/流事件、LLM stream、系统提示 section、settings describe/mutate 与 filesystem skill 契约。本轮未发现需要更改工具或安全门禁的 API 断裂。
+- `pnpm test` 包含真实 rc1 工具 registry 的注册、schema 投影及卸载，以及真实 skill registry/provider 的发现、按需加载、参考文件定位与默认技能目录隔离。非 Windows 平台继续明确拒绝注册操作工具。
+- 可复现的官方 CLI 冒烟：先 `pnpm build && pnpm pack`，再设置 `DSH_CLI` 为官方 rc1 的 `lib/bin.js` 绝对路径，执行 `node scripts/host-smoke.mjs <打包文件.tgz>`。如需自定义包缓存，可设置 `PNPM_STORE_DIR`。脚本新建并清理独立 `DSH_HOME`，安装实际 tarball，核对 bundle 注册、Web 启动、HTTP 200 与客户端资源，不调用模型、不修改用户配置。
+- 本轮执行环境为 Linux：上述检查只证明宿主安装/服务端契约和 Web 资源可用，**不代表 Windows C# / koffi helper、桌面控制、设置页交互或 Esc 接管已通过真机验证**。Windows 10/11 原生验收仍需按上节清单执行。
