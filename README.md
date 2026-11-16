@@ -162,3 +162,7 @@ MIT
 - `pnpm test` 包含真实 rc1 工具 registry 的注册、schema 投影及卸载，以及真实 skill registry/provider 的发现、按需加载、参考文件定位与默认技能目录隔离。非 Windows 平台继续明确拒绝注册操作工具。
 - 可复现的官方 CLI 冒烟：先 `pnpm build && pnpm pack`，再设置 `DSH_CLI` 为官方 rc1 的 `lib/bin.js` 绝对路径，执行 `node scripts/host-smoke.mjs <打包文件.tgz>`。如需自定义包缓存，可设置 `PNPM_STORE_DIR`。脚本新建并清理独立 `DSH_HOME`，安装实际 tarball，核对 bundle 注册、Web 启动、HTTP 200 与客户端资源，不调用模型、不修改用户配置。
 - 本轮执行环境为 Linux：上述检查只证明宿主安装/服务端契约和 Web 资源可用，**不代表 Windows C# / koffi helper、桌面控制、设置页交互或 Esc 接管已通过真机验证**。Windows 10/11 原生验收仍需按上节清单执行。
+
+### 窗口卡片恢复修复（26.11.16-lhg）
+
+当辅助程序崩溃或超时，DSH 窗口可能停留在缩小、半透明、置顶的卡片状态。本版保存窗口原来的位置、透明度和置顶状态，辅助程序恢复时还原；正常退出也会清理自己管理的卡片。整个宿主进程被强制结束时，在下次启动辅助程序时恢复。其他仍在运行的辅助程序所管理的窗口不会被接管。

@@ -20,6 +20,7 @@ export declare class HelperClient implements HelperLike {
     private starting;
     private readonly pending;
     private readonly listeners;
+    private readonly cardChildren;
     private nextId;
     private disposed;
     constructor(log?: (message: string) => void);
