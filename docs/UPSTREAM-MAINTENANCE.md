@@ -32,3 +32,11 @@
 - No npm publication, installation archive upload, new dependency, permission or security-policy changes. Existing package-manager blocked install scripts were not enabled.
 
 - Official npm DSH 0.2.2-rc.3 isolated CLI installation and bootstrap passed: bundle registered, skill provider composed, HTTP 200 and built client served. Host install scripts remained disabled; Linux host check is not Windows Desktop end-to-end acceptance.
+
+## 2026-11-17 — 26.11.17-lhg
+
+- Base `b4eb527240f516249a57b977d6978d8177861253`; selectively absorb upstream `a8fa5defa16147d99218af91b1676e68ee44bca1` (0.8.5). This is functional absorption, not a merge/ancestry claim.
+- Hide the host's decorative first-child span as well as its legacy direct SVG for the marked computer-control settings row. DSH 0.2.2-rc.3 `38a6a5c965aa99ab525161efb7cc5cf1fe62fced` SettingsRoot.tsx uses this span, so the pointer no longer appears alongside the fallback gear. Labels and other settings rows remain untouched.
+- Preserved permissions, all native helpers, tools, on-demand skills, MIT/author attribution and deferred browser refactors. No dependency or compatibility-range change; current latest release remains rc.3.
+- Validation: typecheck, 141 tests, build, package contents, diff whitespace, six jsdom CSS/registration/disposal checks, isolated official rc.3 CLI installation/bootstrap (bundle, skill provider, HTTP 200 and built client served). Native dependency install scripts remained blocked. Browser launch was blocked by socket EPERM; no actual Windows Desktop visual verification is claimed.
+- No npm publication, release archive upload, workflow or account/security changes. Existing push CI will verify this exact revision.
